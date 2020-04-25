@@ -23,3 +23,9 @@ git add .
 git commit -m "your comment here"
 git push
 ```
+To merge your feature code to the master branch, use the UI. 
+* Navigate to the feature branch in the UI
+* Click on compare and pull
+* Add reviewer 
+
+![example][PulRequestExample.png]
