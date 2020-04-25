@@ -19,6 +19,7 @@ git push --set-upstream origin branchName
 ```git
 \\ To checkout an existing branch, make edits, and push
 git checkout branchName
+git pull \\ just in case
 git add . 
 git commit -m "your comment here"
 git push
