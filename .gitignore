@@ -1,3 +1,7 @@
 train.csv
 *.csv
 creds.py
+__init__.py
+competition.cpython-36m-x86_64-linux-gnu.so
+sample_submission.csv.encrypted
+test.csv.encrypted
