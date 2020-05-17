@@ -1,0 +1,314 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.2'
+      jupytext_version: 1.4.2
+  kernelspec:
+    display_name: Python 3
+    language: python
+    name: python3
+---
+
+## Big data analytics: Big Data Bowl 
+Authored by Jason Maloney and Jesse Pezzillo
+
+```{python}
+# Import packages
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import re
+```
+
+```{python}
+# This dataset can be downloaded from https://www.kaggle.com/c/nfl-big-data-bowl-2020/data after an agreement is digitally signed through kaggle. 
+data = pd.read_csv('train.csv')
+#lower all columns
+data.columns = map(str.lower, data.columns)
+```
+
+#### View the data and types
+
+```{python}
+print(data.dtypes)
+```
+
+```{python}
+data.head()
+```
+
+#### Player height
+
+```{python}
+# create function to convert playerHeight to inches
+def heightToInches(x):
+    try:
+        x,x1 = x.split('-')
+        x = int(x)
+        x1 = int(x1)
+        x = (12*x) + x1
+        return(x)
+    except:
+        return int(x*12)
+```
+
+```{python}
+# run function over column
+data["playerheight"] = data["playerheight"].apply(heightToInches)
+```
+
+```{python}
+sns.boxplot(data["playerheight"])
+plt.show()
+```
+
+#### Player age
+
+```{python}
+# convert TimeHandoff to dates and times
+data['timehandoff'] = pd.to_datetime(data['timehandoff'])
+data['timesnap'] = pd.to_datetime(data['timesnap'])
+data['playerbirthdate'] = pd.to_datetime(data["playerbirthdate"])
+# confirm dtype
+print('handoff time:',data["timehandoff"].dtype)
+print('snap time:',data["timesnap"].dtype)
+print('playerbirthdate',data["playerbirthdate"].dtype)
+```
+
+```{python}
+# generate age of each player
+def birthDayCalc(df):
+    birthDay = df[0].year
+    timeHandoff = df[1].year
+    age = (timeHandoff - birthDay) 
+    return age
+data["age"] = data[["playerbirthdate","timehandoff"]].apply(birthDayCalc, axis=1)
+```
+
+```{python}
+sns.boxplot(data["age"])
+plt.show()
+print("Player anomolies/Old dudes:")
+data['displayname'][data["age"] > 36].unique()
+```
+
+#### Windspeed
+
+```{python}
+# convert windspeed
+def windConvert(x):
+    try:
+        x = re.match('[0-9]+',x)
+        x = x.groups()
+        for i in x:
+            y += i
+            return(y)
+    except:
+        return(x)
+data["windspeed"] = data["windspeed"].apply(windConvert)
+# set NAN to 0
+#data["windspeed"] = data["windspeed"].fillna(value=0)
+# set to integer
+# data["windspeed"] = data["windspeed"].astype(int)
+```
+
+```{python}
+# plot with na's set to 0
+sns.distplot(data["windspeed"].fillna(value=0))
+plt.show()
+# plot with no na's
+sns.distplot(data["windspeed"].dropna())
+plt.show()
+```
+
+```{python}
+# create a rusher dummy variable
+data['rusher'] = 0
+data['rusher'][data['nflid'] == data['nflidrusher']] = 1
+```
+
+#### Orientation and Direction
+
+```{python}
+# create functions to fix oreintation and direction
+# Refrenced this notebook to help understand how to modify https://www.kaggle.com/ben519/understanding-x-y-dir-and-orientation
+def fixDir(x):
+    y = (360-x+90) % 360
+    return y
+def fixOri(x):
+    y = (360-x) % 360
+    return y
+```
+
+```{python}
+# apply oreintation fix
+data["orientation"][data["season"] == 2017] = data["orientation"][data["season"] == 2017].apply(fixOri)
+# apply direction fix
+data["dir"] = data["dir"].apply(fixDir)
+```
+
+#### Distance to the Rusher
+
+```{python}
+# get Rusher X and Y
+pos_df = pd.DataFrame(zip(data['x'][data['rusher'] == 1], data['y'][data['rusher'] == 1]), columns = ['x', 'y'])
+pos_df.head()
+```
+
+```{python}
+# need to get each value repeated 22 times, for each player in each play
+posdf = pd.DataFrame(zip(pos_df['x'].repeat(22), pos_df['y'].repeat(22)), index = range(len(data)), columns = ['rushx', 'rushy'])
+# put the rushX and rushY in the main df
+data['rushx'] = posdf['rushx']
+data['rushy'] = posdf['rushy']
+del posdf # delete df to save memory
+```
+
+```{python}
+# euclidean dist = sqrt((x1 - x2)^2 + (y1 - y2)^2) - straight line distance
+data['disttorush'] = np.sqrt((data['x'] - data['rushx'])**2 + (data['y'] - data['rushy'])**2)
+data.head()
+```
+
+```{python}
+# distribution of players' distance to rusher
+sns.distplot(data['disttorush'][data['rusher'] == 0])
+plt.show()
+
+# distribution of yards gained/play
+sns.distplot(data['yards'])
+plt.show()
+```
+
+#### Offensive and Defensive Personnel 
+
+```{python}
+# count defensive position
+# differentiate defensive ol and offensive ol - JM
+data["ol_d"] = data["defensepersonnel"].str.extract(pat="([1-9] OL)")
+data["ol_d"] = data["ol_d"].str.extract(pat="([1-9])")
+data["dl"] = data["defensepersonnel"].str.extract(pat="([1-9] DL)")
+data["dl"] = data["dl"].str.extract(pat="([1-9])")
+data["lb"] = data["defensepersonnel"].str.extract(pat="([1-9] LB)")
+data["lb"] = data["lb"].str.extract(pat="([1-9])")
+data["db"] = data["defensepersonnel"].str.extract(pat="([1-9] DB)")
+data["db"] = data["db"].str.extract(pat="([1-9])")
+# differentiate defensive rb and offensive rb - JM
+data["rb_d"] = data["defensepersonnel"].str.extract(pat="([1-9] RB)")
+data["rb_d"] = data["rb_d"].str.extract(pat="([1-9])")
+```
+
+```{python}
+# count offensive position
+# QB, OL, RB, TE, WR, DL, LB, DB
+data['qb'] = data['offensepersonnel'].str.extract(pat='([1-9] QB)')
+data['qb'] = data['qb'].str.extract(pat='([1-9])')
+data['ol'] = data['offensepersonnel'].str.extract(pat='([1-9] OL)')
+data['ol'] = data['ol'].str.extract(pat='([1-9])')
+data['rb'] = data['offensepersonnel'].str.extract(pat='(\d RB)')
+data['rb'] = data['rb'].str.extract(pat='(\d)')
+data['te'] = data['offensepersonnel'].str.extract(pat='(\d TE)')
+data['te'] = data['te'].str.extract(pat='(\d)')
+data['wr'] = data['offensepersonnel'].str.extract(pat='(\d WR)')
+data['wr'] = data['wr'].str.extract(pat='(\d)')
+# differentiate offensive dl - JM
+data['dl_o'] = data['offensepersonnel'].str.extract(pat='(\d DL)')
+data['dl_o'] = data['dl_o'].str.extract(pat='(\d)')
+data['lb_o'] = data['offensepersonnel'].str.extract(pat='(\d LB)')
+data['lb_o'] = data['lb_o'].str.extract(pat='(\d)')
+data['db_o'] = data['offensepersonnel'].str.extract(pat='(\d DB)')
+data['db_o'] = data['db_o'].str.extract(pat='(\d)')
+```
+
+```{python}
+# replace nas with 0
+data['ol'].fillna(0, inplace = True)
+data['dl'].fillna(0, inplace = True)
+data['db'].fillna(0, inplace = True)
+data['lb'].fillna(0, inplace = True)
+data['rb'].fillna(0, inplace = True)
+data['ol_d'].fillna(0, inplace = True)
+data['rb_d'].fillna(0, inplace = True)
+data['te'].fillna(0, inplace = True)
+data['wr'].fillna(0, inplace = True)
+data['dl_o'].fillna(0, inplace = True)
+data['lb_o'].fillna(0, inplace = True)
+data['db_o'].fillna(0, inplace = True)
+# replace qb nas with 1 - WILDCAT has a qb, but the ball is snapped to someone else - JM
+data['qb'].fillna(1, inplace = True)
+```
+
+```{python}
+# set ol == 0 to be 11 - sum(offensive personnel)
+off = ['rb', 'qb', 'te', 'wr', 'dl_o', 'lb_o', 'db_o'] 
+data[off] = data[off].astype(str).astype(int)
+data['ol'][data['ol'] == 0] = 11 - data[off].sum(axis = 1)
+```
+
+```{python}
+# convert rest of personnel to int
+defp = ['dl', 'lb', 'rb_d', 'ol_d', 'db']
+data[defp] = data[defp].astype(str).astype(int)
+# fill lb na with 11 - sum(everyone else on defense)
+data['lb'][data['lb'] == 0] = 11 - data[defp].sum(axis = 1)
+```
+
+```{python}
+data[13109:131114]
+```
+
+```{python}
+# distritbution of ol/play
+sns.countplot(data['ol'])
+```
+
+```{python}
+# distribution of wr/play
+sns.countplot(data['wr'])
+plt.show()
+
+sns.distplot(data['wr'])
+plt.show
+```
+
+```{python}
+# distribution of db/play
+sns.countplot(data['db'])
+```
+
+### Reshape dataframe
+
+```{python}
+# explore one play visually
+# influcenced by https://www.kaggle.com/statsbymichaellopez/nfl-tracking-wrangling-voronoi-and-sonars
+# select one play
+plot = data[data["playid"] == 20170907000118]
+# plot using seaborn
+sns.scatterplot(data=plot,x="x",y="y",hue="team")
+# set football field dimensions
+plt.xlim(0,100)
+plt.ylim(0,53.3)
+# show plot
+plt.show()
+
+```
+
+```{python}
+def teamIdentitySet(x):
+    if x["team"] == "home":
+        return x["hometeamabbr"]
+    else:
+        return x["visitorteamabbr"]
+```
+
+```{python}
+plot["teamidentity"] = plot.apply(teamIdentitySet, axis=1)
+```
+
+```{python}
+
+```
