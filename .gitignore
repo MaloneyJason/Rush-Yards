@@ -7,3 +7,7 @@ sample_submission.csv.encrypted
 test.csv.encrypted
 settings.json
 .vscode
+nfl-big-data-bowl-2020
+creds.cpython-37.pyc
+__pycache__
+.DS_Store
