@@ -1,0 +1,14 @@
+Both notebooks requires
+    - 'all_combined_data.pkl' 
+    - 'rf_model.sav'
+    - 'trainX.pkl'
+    - 'testX.pkl'
+    
+    
+ Coach's Return
+    - allows for user input of a play scenario 
+    - return get summary stats and result probabilities
+
+Interactive Returns requires 
+    - allows for user input of a play number 
+    - returns scatter plot with direction of rusher and optional GIF 
