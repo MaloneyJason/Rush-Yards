@@ -1,4 +1,5 @@
 # Rush-Yards
+A project to find important features for predicting yards gained for NFL rush plays.
 
 ### Useful git commands
 ```git
